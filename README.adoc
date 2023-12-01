@@ -1,0 +1,5 @@
+= About
+
+This repository hosts all my answers for this year (2023) Advent Of Code 😄
+
+All answers are my own, written in Rust !
