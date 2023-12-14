@@ -129,7 +129,8 @@ fn recursive_count(spring_list: String, group_list: Vec<usize>) -> u64 {
                         return 0;
                     }
 
-                    let expected_group = (0..).take(*group).map(|_| '#').collect_vec();
+                    // let expected_group = (0..).take(*group).map(|_| '#').collect_vec();
+                    let expected_group = vec!['#'; *group];
 
                     // The resulting group should be the same the expected,
                     // or else we have a failure
