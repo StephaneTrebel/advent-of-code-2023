@@ -68,7 +68,7 @@ hdj{m>838:A,pv}
 
 The workflows are listed first, followed by a blank line, then the ratings of
 the parts the Elves would like you to sort. All parts begin in the workflow
-named in. In this example, the five listed parts go through the following
+named `in`. In this example, the five listed parts go through the following
 workflows:
 
 - `{x=787,m=2655,a=1222,s=2876}`: `in` -> `qqz` -> `qs` -> `lnx` -> *`A`*
