@@ -129,9 +129,10 @@ fn find_longest_path(content: &Content) -> (usize, Content) {
 
         // Goal
         if parent == finish_point {
-            break;
+            continue;
         }
 
+        // Light optimization to avoid checking unnecessary tiles
         let possible_successors = match content.map.get(&parent) {
             None => vec![],
             Some('.') => vec![(-1, 0), (1, 0), (0, -1), (0, 1)],
@@ -160,38 +161,48 @@ fn find_longest_path(content: &Content) -> (usize, Content) {
                         match content.map.get(&new_coords) {
                             None => {}
                             Some('#') => {}
-                            _ => {
-                                return Some((new_coords, parent.clone(), current_path));
+                            Some(c) => {
+                                return Some((new_coords, *c, parent.clone(), current_path));
                             }
                         }
                     }
                 }
                 return None;
             })
-            .collect::<Vec<(Coords, Coords, Uuid)>>();
+            .collect::<Vec<(Coords, char, Coords, Uuid)>>();
 
         // If we are at an intersection
         if valid_successors.len() > 1 {
             valid_successors
                 .iter()
-                // We branch off to check if the alternate path does not have a longer path
-                // hence the use of `index`
-                .for_each(|(successor, parent, path_id)| {
-                    // index +1 to ensure a unique path id
-                    let new_path_id = Uuid::new_v4();
-                    path_list.push(new_path_id);
-                    visited.insert(
-                        (successor.clone(), new_path_id),
-                        Some((parent.clone(), *path_id)),
-                    );
-                    queue.push_back((successor.clone(), new_path_id));
+                .for_each(|(successor, successor_tile, parent, path_id)| {
+                    // Only consider new paths when it's possible to go there
+                    if *successor_tile == '.'
+                        || *successor_tile == '<' && successor.x < parent.x
+                        || *successor_tile == '>' && successor.x > parent.x
+                        || *successor_tile == '^' && successor.y < parent.y
+                        || *successor_tile == 'v' && successor.y > parent.y
+                    {
+                        // UUid to ensure path id uniqueness
+                        let new_path_id = Uuid::new_v4();
+                        path_list.push(new_path_id);
+
+                        // Algorithm core: we mark the tile as visited for this path
+                        // and link it to its parent (which may be on another path)
+                        visited.insert(
+                            (successor.clone(), new_path_id),
+                            Some((parent.clone(), *path_id)),
+                        );
+                        // And we iterate on it !
+                        queue.push_back((successor.clone(), new_path_id));
+                    }
                 })
         }
         // If not an intersection, we go further in the path
         else {
             valid_successors
                 .iter()
-                .for_each(|(successor, parent, path_id)| {
+                .for_each(|(successor, _, parent, path_id)| {
                     visited.insert(
                         (successor.clone(), *path_id),
                         Some((parent.clone(), *path_id)),
@@ -201,32 +212,33 @@ fn find_longest_path(content: &Content) -> (usize, Content) {
         }
     }
 
-    let mut tmp_element = finish_point;
+    let mut tmp_element: Coords;
+
+    println!("Browsing all paths to retrieve the longest one");
 
     // Loop to determine the longest path id and length
-    let mut longest_length = 0;
-    let mut longest_path_id: Uuid = starting_uuid;
-    for path_id in path_list {
-        let mut length = 0;
-        let mut tmp_path_id = path_id;
-        while let Some(parent_tuple) = visited.get(&(tmp_element.clone(), tmp_path_id)) {
-            match parent_tuple.clone() {
-                None => {
-                    break;
-                }
-                Some(parent) => {
-                    length += 1;
-                    tmp_element = parent.0.clone();
-                    tmp_path_id = parent.1;
+    let (longest_path_id, longest_path_length) = path_list
+        .iter()
+        .map(|path_id| {
+            let mut length = 0;
+            let mut tmp_path_id = *path_id;
+            let mut tmp_element = finish_point.clone();
+            while let Some(parent_tuple) = visited.get(&(tmp_element.clone(), tmp_path_id)) {
+                match parent_tuple.clone() {
+                    None => {
+                        break;
+                    }
+                    Some(parent) => {
+                        length += 1;
+                        tmp_element = parent.0.clone();
+                        tmp_path_id = parent.1;
+                    }
                 }
             }
-        }
-        dbg!(&length);
-        if length > longest_length {
-            longest_length = length;
-            longest_path_id = path_id;
-        }
-    }
+            (*path_id, length)
+        })
+        .max_by(|(_, length_a), (_, length_b)| length_a.cmp(length_b))
+        .unwrap();
 
     // Special loop to mutate the map in order to «see» the longest path
     tmp_element = Coords {
@@ -253,7 +265,7 @@ fn find_longest_path(content: &Content) -> (usize, Content) {
         }
     }
 
-    (longest_length, new_content)
+    (longest_path_length, new_content)
 }
 
 #[cfg(test)]
